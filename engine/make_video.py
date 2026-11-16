@@ -143,27 +143,75 @@ def ambience(kind, n):
     return bed * fade
 
 
-def narrate(items, voice, work):
+def _split_points(audio, sr, texts):
+    """Find where each sentence starts inside one synthesized paragraph (pauses between sentences)."""
+    n = len(audio); hop = int(0.01 * sr)
+    env_ = np.sqrt(np.convolve(audio ** 2, np.ones(hop) / hop, mode="same"))[::hop]
+    thr = max(1e-4, 0.06 * np.percentile(env_, 95))
+    quiet = env_ < thr
+    runs, i = [], 0
+    while i < len(quiet):
+        if quiet[i]:
+            j = i
+            while j < len(quiet) and quiet[j]:
+                j += 1
+            if (j - i) >= 6 and i > 0 and j < len(quiet):          # >= 60 ms pause inside the paragraph
+                runs.append(((i + j) / 2 * hop, (j - i)))
+            i = j
+        else:
+            i += 1
+    lens = np.array([len(x) + 1 for x in texts], float); cum = np.cumsum(lens)[:-1] / lens.sum()
+    est = cum * n; pts = []; last = 0
+    for e in est:
+        cands = [c for c, ln in runs if c > last + 0.25 * sr]
+        if cands:
+            c = min(cands, key=lambda c: abs(c - e) - 0.002 * sr * 0)
+            if abs(c - e) > 0.35 * n / max(1, len(texts)):
+                c = e
+        else:
+            c = e
+        pts.append(int(c)); last = c
+    return pts
+
+
+def narrate(items, voice, work, speed=1.0, group=4):
+    """Synthesize the narration. Consecutive lines are read together (up to `group` lines, split at
+    sound effects) so the intonation is natural; sentence start times are recovered from the pauses."""
     from kokoro_onnx import Kokoro
     k = Kokoro(os.path.join(HERE, "kokoro", "kokoro-v1.0.onnx"), os.path.join(HERE, "kokoro", "voices-v1.0.bin"))
     lang = "en-gb" if voice.startswith("b") else "en-us"
     pieces, timeline, t = [], [], 0.8
-    for it in items:
-        if it.get("sfx"):
-            s = sfx(it["sfx"]); pieces.append(("sfx", t, s, it["sfx"]))
-            # leave room for the effect before the narration resumes
+    # build groups
+    groups, cur = [], []
+    for idx, it in enumerate(items):
+        if cur and (it.get("sfx") or len(cur) >= group):
+            groups.append(cur); cur = []
+        cur.append(idx)
+    if cur:
+        groups.append(cur)
+    for g in groups:
+        first = items[g[0]]
+        if first.get("sfx"):
+            s = sfx(first["sfx"]); pieces.append(("sfx", t, s, first["sfx"]))
             t += {"knock": 1.3, "phone": 1.6, "thunder": 1.2, "heartbeat": 0.6, "footsteps": 1.6,
-                  "door": 1.2, "whisper": 0.4, "stinger": 0}.get(it["sfx"], 0.5)
-        audio, sr = k.create(it["text"], voice=voice, speed=0.9, lang=lang)
+                  "door": 1.2, "whisper": 0.4, "stinger": 0}.get(first["sfx"], 0.5)
+        texts = [items[i]["text"].strip() for i in g]
+        audio, sr = k.create(" ".join(texts), voice=voice, speed=speed, lang=lang)
         audio = np.asarray(audio, dtype=np.float64)
-        fl = min(len(audio) // 4, int(0.012 * sr))                  # tiny fades: no clicks at phrase edges
+        fl = min(len(audio) // 4, int(0.012 * sr))
         if fl > 1:
             audio[:fl] *= np.linspace(0, 1, fl); audio[-fl:] *= np.linspace(1, 0, fl)
+        pts = _split_points(audio, sr, texts) if len(texts) > 1 else []
         if sr != SR:
-            audio = np.interp(np.arange(0, len(audio) * SR / sr) * sr / SR, np.arange(len(audio)), audio)
+            ratio = SR / sr
+            audio = np.interp(np.arange(0, len(audio) * ratio) / ratio, np.arange(len(audio)), audio)
+            pts = [int(p * ratio) for p in pts]
+        bounds = [0] + pts + [len(audio)]
+        for j, i in enumerate(g):
+            a, b = bounds[j] / SR, bounds[j + 1] / SR
+            timeline.append((t + a, t + b, items[i]["text"], items[i].get("scene")))
         pieces.append(("voice", t, audio, None))
-        timeline.append((t, t + len(audio) / SR, it["text"], it.get("scene")))
-        t += len(audio) / SR + 0.5
+        t += len(audio) / SR + 0.45
     total = t + 2.5
     n = int(total * SR)
     voice_tr = np.zeros(n); fx_tr = np.zeros(n)

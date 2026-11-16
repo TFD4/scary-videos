@@ -1,0 +1,6 @@
+Title: How to Hide From a Drone
+Date: 2026-11-16 (evening)
+Format: animated survival HUD (make_survival.py)
+Premise: 2nd person, hiding from a thermal drone in a forest at night (thermal camera, searchlight, cold stream, drainage pipe); twist: the red light at the end of the pipe, it was never the drone.
+RECIPE: theme=being hunted (machine) / hook=time+sound / title=HOW TO... + question subtitle / length=70s / voice=am_onyx / ambience=wind / threat=rotor / scenes=forest,thermal,searchlight,water,pipe,corridor,whiteout / ending=twist reveal
+Published: YouTube Shorts + TikTok, ~21:45
