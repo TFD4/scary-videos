@@ -341,19 +341,21 @@ def alpha_over(base, rgba):
 def threat_sound(kind, n):
     r = np.random.default_rng(3); t = np.arange(n) / SR
     if kind == "rotor":
-        chop = (0.5 + 0.5 * np.sign(np.sin(2 * np.pi * 11 * t))) ** 1
-        base = mv.lp_fast(r.standard_normal(n), 220) * chop
-        return mv.norm(base + mv.lp_fast(r.standard_normal(n), 90) * 0.6, 1.0)
+        chop = (0.5 + 0.5 * np.sin(2 * np.pi * 11 * t)) ** 3          # smooth blade thump, no hard gating
+        base = mv.lp_fast(r.standard_normal(n), 220) * (0.25 + chop)
+        thump = mv.lp_fast(np.sin(2 * np.pi * 22 * t) * chop, 120)
+        return mv.norm(base + thump * 0.8 + mv.lp_fast(r.standard_normal(n), 90) * 0.5, 1.0)
     if kind == "growl":
         f = 48 + 6 * np.sin(2 * np.pi * 0.3 * t)
         g = np.sin(2 * np.pi * np.cumsum(f) / SR) * (0.6 + 0.4 * np.sin(2 * np.pi * 7 * t))
         return mv.norm(g + mv.lp_fast(r.standard_normal(n), 160) * 0.5, 1.0)
     if kind == "engine":
         f = 60 + 10 * np.sin(2 * np.pi * 0.1 * t)
-        e = np.sign(np.sin(2 * np.pi * np.cumsum(f) / SR))
-        return mv.norm(mv.lp_fast(e, 400), 1.0)
+        ph = 2 * np.pi * np.cumsum(f) / SR
+        e = np.tanh(3 * np.sin(ph)) + 0.4 * np.sin(2 * ph)
+        return mv.norm(mv.lp_fast(e, 300), 1.0)
     if kind == "static":
-        return mv.norm(mv.hp_fast(r.standard_normal(n), 2000) * (0.5 + 0.5 * np.sin(2 * np.pi * 0.7 * t)), 1.0)
+        return mv.norm(mv.lp_fast(mv.hp_fast(r.standard_normal(n), 800), 3000) * (0.5 + 0.5 * np.sin(2 * np.pi * 0.7 * t)), 1.0)
     return np.zeros(n)
 
 
@@ -450,7 +452,7 @@ def main():
     prox = np.interp(tt, np.linspace(0, total, 400), prox)
     hb = heartbeat_track(bpm_at, n)
     bed = mv.ambience(story.get("ambience", "wind"), n)
-    voice_tr = mv.norm(voice_tr, 0.95)
+    voice_tr = mv.norm(mv.lp_fast(voice_tr, 9000), 0.95)       # soften synthetic fizz/sibilance
     venv = mv.lp_fast(np.abs(voice_tr), 3); duck = 1 - np.clip(venv * 6, 0, 0.6); fxd = 1 - np.clip(venv * 8, 0, 0.75)
     grid = np.linspace(0, total, 400)
     dz_curve = np.interp(tt, grid, [danger_at(x) for x in grid])
@@ -494,7 +496,8 @@ def main():
     ass = os.path.join(work, "caps.ass").replace(":", "\\:")
     mv.run(["ffmpeg", "-y", "-i", raw, "-i", wav, "-vf", f"ass={ass}:fontsdir={FONT_DIR}", "-map", "0:v", "-map", "1:a",
             "-t", f"{total:.2f}", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-maxrate", "4500k", "-bufsize", "9000k",
-            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", out])
+            "-pix_fmt", "yuv420p", "-af", "aresample=48000:resampler=soxr,lowpass=f=11000", "-c:a", "aac", "-b:a", "192k",
+            "-movflags", "+faststart", out])
     print(f"OK {out} {total:.1f}s {os.path.getsize(out)} bytes")
 
 

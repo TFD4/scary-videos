@@ -116,7 +116,7 @@ def sfx(kind):
         return norm(lp_fast(creak, 2500), 0.4)
     if kind == "whisper":
         n = int(2.2 * SR); t = np.arange(n) / SR
-        w = hp_fast(r.standard_normal(n), 2500) * (0.5 + 0.5 * np.sin(2 * np.pi * 3.1 * t) ** 2) * env(n, .4, .8)
+        w = lp_fast(hp_fast(r.standard_normal(n), 1800), 5500) * (0.5 + 0.5 * np.sin(2 * np.pi * 3.1 * t) ** 2) * env(n, .4, .8)
         return norm(w, 0.25)
     if kind == "stinger":
         n = int(3.0 * SR); t = np.arange(n) / SR
@@ -156,6 +156,9 @@ def narrate(items, voice, work):
                   "door": 1.2, "whisper": 0.4, "stinger": 0}.get(it["sfx"], 0.5)
         audio, sr = k.create(it["text"], voice=voice, speed=0.9, lang=lang)
         audio = np.asarray(audio, dtype=np.float64)
+        fl = min(len(audio) // 4, int(0.012 * sr))                  # tiny fades: no clicks at phrase edges
+        if fl > 1:
+            audio[:fl] *= np.linspace(0, 1, fl); audio[-fl:] *= np.linspace(1, 0, fl)
         if sr != SR:
             audio = np.interp(np.arange(0, len(audio) * SR / sr) * sr / SR, np.arange(len(audio)), audio)
         pieces.append(("voice", t, audio, None))
