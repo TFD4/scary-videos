@@ -1,0 +1,30 @@
+{
+  "title": "HOW TO HIDE FROM A DRONE",
+  "subtitle": "can you stay hidden?",
+  "voice": "am_onyx",
+  "ambience": "wind",
+  "threat": "rotor",
+  "readout": "DISTANCE",
+  "unit": "M",
+  "beats": [
+    {"text": "It's 2 a.m. and something is humming above the trees.", "scene": "forest", "distance": 320, "danger": 0.2, "sfx": "heartbeat"},
+    {"text": "It doesn't need light to find you.", "scene": "thermal", "distance": 300, "danger": 0.3, "formula": "j = σT⁴"},
+    {"text": "That white shape is you.", "scene": "thermal", "distance": 290, "danger": 0.35, "emph": true},
+    {"text": "Your body glows at thirty-seven degrees. The forest doesn't.", "scene": "thermal", "distance": 260, "danger": 0.4},
+    {"text": "Rule one. Don't run.", "scene": "forest", "distance": 230, "danger": 0.45, "emph": true},
+    {"text": "Movement is the first thing it locks on to.", "scene": "forest", "distance": 210, "danger": 0.5},
+    {"text": "Rule two. Break your shape.", "scene": "forest", "distance": 190, "danger": 0.5},
+    {"text": "Get under the fallen tree. Cold bark between you and the sky.", "scene": "forest", "distance": 170, "danger": 0.55, "sfx": "footsteps"},
+    {"text": "The light is sweeping toward you.", "scene": "searchlight", "distance": 120, "danger": 0.7, "formula": "I ∝ 1/r²"},
+    {"text": "Don't look up. Your face reflects.", "scene": "searchlight", "distance": 90, "danger": 0.75, "emph": true},
+    {"text": "There's a stream twenty meters to your left.", "scene": "black", "distance": 95, "danger": 0.6},
+    {"text": "Water is colder than you. It hides your heat.", "scene": "water", "distance": 110, "danger": 0.55, "formula": "q = h·A·ΔT"},
+    {"text": "Go under. Count to thirty.", "scene": "water", "distance": 80, "danger": 0.7},
+    {"text": "Your lungs are burning.", "scene": "water", "distance": 60, "danger": 0.85, "sfx": "heartbeat"},
+    {"text": "The hum fades.", "scene": "black", "distance": 240, "danger": 0.4},
+    {"text": "You crawl into the drainage pipe and finally breathe.", "scene": "pipe", "distance": 400, "danger": 0.25},
+    {"text": "It's leaving.", "scene": "pipe", "distance": 520, "danger": 0.2},
+    {"text": "Then you notice the small red light at the other end of the pipe.", "scene": "corridor", "distance": 9, "danger": 0.9, "sfx": "stinger"},
+    {"text": "It was never the drone. It found you.", "scene": "whiteout", "distance": 3, "danger": 1.0, "emph": true}
+  ]
+}
