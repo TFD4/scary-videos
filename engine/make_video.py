@@ -125,6 +125,19 @@ def sfx(kind):
         hit = (lp_fast(r.standard_normal(hit_n), 300) * 2 + np.sin(2 * np.pi * 41 * th)) * np.exp(-th * 2.2)
         out = np.zeros(int(5.0 * SR)); out[:n] += norm(rise, 0.35); out[n - int(0.05 * SR):n - int(0.05 * SR) + hit_n] += norm(hit, 1.0)
         return out
+    if kind == "whoosh":
+        n = int(1.2 * SR); t = np.arange(n) / SR
+        w = lp_fast(r.standard_normal(n), 1800) * np.sin(np.pi * t / t[-1]) ** 2
+        return norm(w, 0.6)
+    if kind == "impact":
+        n = int(1.6 * SR); t = np.arange(n) / SR
+        hit = (np.sin(2 * np.pi * 48 * t) + lp_fast(r.standard_normal(n), 400) * 0.8) * np.exp(-t * 4.5)
+        fl = int(0.004 * SR); hit[:fl] *= np.linspace(0, 1, fl)
+        return norm(hit, 0.95)
+    if kind == "beep":
+        n = int(0.9 * SR); t = np.arange(n) / SR
+        b = np.sin(2 * np.pi * 1320 * t) * ((t % 0.3) < 0.12) * 0.5
+        return lp_fast(b, 4000) * env(n, .005, .05)
     return np.zeros(1)
 
 
@@ -194,7 +207,7 @@ def narrate(items, voice, work, speed=1.0, group=4):
         if first.get("sfx"):
             s = sfx(first["sfx"]); pieces.append(("sfx", t, s, first["sfx"]))
             t += {"knock": 1.3, "phone": 1.6, "thunder": 1.2, "heartbeat": 0.6, "footsteps": 1.6,
-                  "door": 1.2, "whisper": 0.4, "stinger": 0}.get(first["sfx"], 0.5)
+                  "door": 1.2, "whisper": 0.4, "stinger": 0, "whoosh": 0.6, "impact": 0.5, "beep": 0.6}.get(first["sfx"], 0.5)
         texts = [items[i]["text"].strip() for i in g]
         audio, sr = k.create(" ".join(texts), voice=voice, speed=speed, lang=lang)
         audio = np.asarray(audio, dtype=np.float64)

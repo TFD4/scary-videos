@@ -1,0 +1,32 @@
+{
+  "style": "whatif",
+  "title": "What happens if you slam a door too hard?",
+  "voice": "am_onyx",
+  "ambience": "drone",
+  "threat": "none",
+  "beats": [
+    {"text": "What happens if you slam a door too hard?", "scene": "street", "label": "SOUND", "unit": "DB", "value": 112, "from": 40, "danger": 0.2, "sfx": "impact", "emph": true},
+    {"text": "Normally, you'd just wake up the neighbors.", "scene": "street", "label": "SOUND", "unit": "DB", "value": 112, "danger": 0.15},
+    {"text": "But this slam hits one very specific frequency.", "scene": "grid", "label": "FREQUENCY", "sublabel": "resonance match", "unit": "HZ", "value": 7.83, "from": 1, "danger": 0.35},
+    {"text": "Every window on the street starts to hum.", "scene": "street", "label": "FREQUENCY", "unit": "HZ", "value": 7.83, "danger": 0.45, "sfx": "beep"},
+    {"text": "The vibration finds a tiny crack in the pavement.", "scene": "crack", "label": "CRACK WIDTH", "unit": "MM", "value": 1.4, "from": 0, "danger": 0.4, "tag": "≈ 1.4 MM"},
+    {"text": "And it keeps going. Down.", "scene": "crosssection", "label": "DEPTH", "sublabel": "signal travelling", "unit": "KM", "value": 10, "from": 0, "danger": 0.5, "you": true, "you_at": [0.62, 0.22]},
+    {"text": "Ten kilometers below you, a fault was already at its limit.", "scene": "crosssection", "label": "PRESSURE", "sublabel": "fault locked", "unit": "%", "value": 99.98, "from": 92, "danger": 0.7, "tag": "≈ 10 KM DOWN"},
+    {"text": "Your door was the last push.", "scene": "crosssection", "label": "PRESSURE", "unit": "%", "value": 100, "danger": 0.85, "emph": true},
+    {"text": "The fault slips.", "scene": "blast", "label": "MAGNITUDE", "sublabel": "rupture spreading", "unit": "", "value": 7.9, "from": 1, "danger": 0.9, "sfx": "impact"},
+    {"text": "Cars bounce. Streetlights sway like grass.", "scene": "street", "label": "GROUND SHAKING", "unit": "G", "value": 0.8, "from": 0, "danger": 0.95},
+    {"text": "The quake even nudges how fast the Earth spins.", "scene": "planet", "label": "DAY LENGTH", "sublabel": "change", "unit": "µS", "value": 1.6, "from": 0, "danger": 0.5},
+    {"text": "And under the ocean, the seafloor jumps.", "scene": "tsunami", "label": "SEA LEVEL", "unit": "M", "value": 0, "from": 0, "danger": 0.1},
+    {"text": "Far out at sea, something is rising.", "scene": "tsunami", "label": "WAVE HEIGHT", "sublabel": "distant water mass detected", "unit": "M", "value": 3, "from": 0, "danger": 0.3, "sfx": "whoosh"},
+    {"text": "Then it gets taller.", "scene": "tsunami", "label": "WAVE HEIGHT", "sublabel": "distant water mass detected", "unit": "M", "value": 64, "danger": 0.7},
+    {"text": "And taller.", "scene": "tsunami", "label": "WAVE HEIGHT", "sublabel": "distant water mass detected", "unit": "M", "value": 120, "danger": 1.0, "emph": true},
+    {"text": "All because of one door.", "scene": "endcard", "danger": 0.2, "sfx": "beep"}
+  ],
+  "endcard": {
+    "stats": ["slam · 112 dB", "resonance · 7.83 Hz", "fault · M7.9", "wave · 120 m"],
+    "kicker": "cause of global catastrophe:",
+    "punchline": "slammed a door",
+    "tagline": "maybe just close it gently.",
+    "note": "satirical simulation. doors cannot actually do this."
+  }
+}
