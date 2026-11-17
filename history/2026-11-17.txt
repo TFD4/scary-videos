@@ -1,0 +1,6 @@
+Format: whatif
+Title: What happens if an asteroid hits the Atlantic?
+Date: 2026-11-17 (republished ~16:55, replaces the supervolcano video which had crackling audio and low quality)
+Premise: 1 km asteroid hits the Atlantic while you're on the beach: 6h warning, impact, vaporised ocean, 120 m wave, storms, impact winter; the winter is the real killer.
+RECIPE: apocalyptic survival / hook=question+you're on the beach / 3 survival rules / karaoke captions / camera push-ins + particles / scenes asteroid,city,blast,ocean,tsunami,ruins,storm,ice,shelter,aurora / ~64s / voice am_onyx
+Note: audio bug fixed (NaN clicks when values exceeded the max).

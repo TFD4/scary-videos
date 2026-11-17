@@ -21,14 +21,6 @@ story.json
   ]
 }
 scene: forest | searchlight | thermal | water | pipe | lights | window | corridor | road | black | whiteout
-       (what-if style also: street | crack | crosssection | tsunami | blast | planet | moon | space | blackhole |
-        body (+ "focus": brain|heart|lungs|stomach|bones|legs|skin) | fall | city | ocean | cells | grid | endcard)
-
-WHAT-IF STYLE ("style": "whatif", see example_whatif.json): no banner; the first beat's caption is the question.
-Each beat may set "label" (big serif readout top-left, e.g. "WAVE HEIGHT"), "sublabel", "unit", "value",
-"from" (counter restarts from this when the label changes), "you": true (+ "you_at": [x, y] 0..1) to show a
-YOU pin, "tag" (tilted sticker text like "≈ 10 KM DOWN"). danger 0..1 drives the scene intensity. The last beat
-uses scene "endcard" with story["endcard"] = {stats[], kicker, punchline, tagline, note}.
 distance: value the counter moves to during the beat (counts smoothly). danger 0..1 drives heart rate,
 shake, red tint and chromatic aberration. emph: caption in red. sfx: knock, phone, thunder,
 heartbeat, footsteps, door, whisper, stinger (see make_video.py). formula: optional small text.
@@ -51,6 +43,8 @@ F_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 F_ITAL = os.path.join(FONT_DIR, "Lora-Italic-Variable.ttf")
 ACCENT = (255, 138, 61)               # counter colour
 RED = (228, 36, 43)
+DEFAULT_PART = {"volcano": "ash", "ruins": "embers", "asteroid": "sparks", "ice": "snow", "storm": "rain",
+                "shelter": "dust", "searchlight": None, "forest": None, "city": None}
 
 
 def font(path, size):
@@ -150,6 +144,63 @@ class Scene:
         if k in ("ocean", "cells", "blast", "grid"):
             self.tex = noise_tex(rng, RW, RH * 2, 70, 4)
             self.parts = [(rng.uniform(0, RW), rng.uniform(0, RH), rng.uniform(1, 3), rng.uniform(5, 25), rng.uniform(0, 6.28)) for _ in range(120)]
+        if k in ("volcano", "asteroid", "ruins", "ice", "storm", "shelter", "aurora"):
+            self.tex = noise_tex(rng, RW, RH * 2, 90, 5)
+            self.tex3 = noise_tex(rng, RW * 2, RH * 2, 160, 5)
+            self.stars = np.zeros((RH, RW), np.float32)
+            for _ in range(500):
+                self.stars[int(rng.integers(0, RH)), int(rng.integers(0, RW))] = rng.uniform(0.2, 1.0) ** 2
+            self.stars = cv2.GaussianBlur(self.stars, (3, 3), 0.6) * 2.5
+            m = Image.new("L", (RW, RH), 0); d = ImageDraw.Draw(m)
+            if k == "volcano":
+                pts = [(-20, RH)]
+                for x in range(-20, RW + 30, 12):
+                    u = abs(x - RW / 2) / (RW / 2)
+                    y = RH * (0.50 + 0.38 * u ** 0.85) + rng.uniform(-6, 6)
+                    if abs(x - RW / 2) < 46:
+                        y = RH * 0.515 + rng.uniform(-3, 3)
+                    pts.append((x, y))
+                pts.append((RW + 30, RH)); d.polygon(pts, fill=255)
+                self.mask = np.asarray(m, np.float32) / 255
+                lv = Image.new("L", (RW, RH), 0); dl = ImageDraw.Draw(lv)
+                for sgn in (-1, 1):
+                    for j in range(3):
+                        x, y = RW / 2 + sgn * (10 + j * 12), RH * 0.52; path = [(x, y)]
+                        for _ in range(40):
+                            x += sgn * rng.uniform(2, 9); y += rng.uniform(6, 12); path.append((x, y))
+                        dl.line(path, fill=255, width=int(rng.integers(3, 6)))
+                self.lava = np.asarray(lv, np.float32) / 255 * self.mask
+            elif k == "ruins":
+                x = 0
+                while x < RW:
+                    w_ = int(rng.integers(26, 70)); h_ = int(rng.integers(120, 420)); top = RH * 0.78 - h_
+                    tilt = rng.uniform(-14, 14)
+                    jag = [(x, RH), (x, top + rng.uniform(0, 40))]
+                    for k2 in range(5):
+                        jag.append((x + w_ * (k2 + 1) / 5, top + tilt * (k2 / 5) + rng.uniform(-25, 30)))
+                    jag.append((x + w_, RH)); d.polygon(jag, fill=255)
+                    x += w_ + int(rng.integers(4, 20))
+                d.rectangle([0, int(RH * 0.78), RW, RH], fill=255)
+                self.mask = np.asarray(m, np.float32) / 255
+                self.fires = [(rng.uniform(0, RW), rng.uniform(RH * 0.55, RH * 0.8), rng.uniform(10, 26), rng.uniform(0, 6)) for _ in range(9)]
+            elif k == "ice":
+                pts = [(0, RH)] + [(x, RH * 0.55 - 60 * abs(math.sin(x / 70 + rng.random())) - rng.uniform(0, 20)) for x in range(0, RW + 20, 20)] + [(RW, RH)]
+                d.polygon(pts, fill=255); self.mask = np.asarray(m, np.float32) / 255
+                cr = Image.new("L", (RW, RH), 0); dc = ImageDraw.Draw(cr)
+                for _ in range(7):
+                    x, y = rng.uniform(0, RW), rng.uniform(RH * 0.7, RH); path = [(x, y)]
+                    for _ in range(14):
+                        x += rng.uniform(-30, 30); y += rng.uniform(-20, 14); path.append((x, y))
+                    dc.line(path, fill=255, width=2)
+                self.cracks = cv2.GaussianBlur(np.asarray(cr, np.float32) / 255, (0, 0), 1)
+            elif k == "shelter":
+                for j in range(4):
+                    y = RH * (0.2 + j * 0.15); d.rectangle([20, y, 150, y + 8], fill=255); d.rectangle([RW - 150, y, RW - 20, y + 8], fill=255)
+                    for c in range(5):
+                        hh = rng.uniform(20, 55); d.rectangle([28 + c * 24, y - hh, 46 + c * 24, y], fill=255)
+                        hh = rng.uniform(20, 55); d.rectangle([RW - 142 + c * 24, y - hh, RW - 124 + c * 24, y], fill=255)
+                self.mask = np.asarray(m, np.float32) / 255
+            self.bolt_seed = int(rng.integers(0, 1 << 30))
         if k in ("crack", "crosssection", "street", "tsunami"):
             self.tex = noise_tex(rng, RW, RH, 40, 5)
             self.tex2 = noise_tex(rng, RW * 2, RH, 120, 4)
@@ -330,6 +381,92 @@ class Scene:
                 hot = (disk * 2.2 * swirl + halo)
                 img = img * np.clip((rr - ring_r * 0.95) * 30, 0, 1)[..., None] * (rr > ring_r * 0.95)[..., None]
                 img = img + hot[..., None] * np.array([1.0, 0.62, 0.25], np.float32)
+        elif k == "volcano":
+            sky = np.stack([0.10 + 0.25 * NY, 0.05 + 0.08 * NY, 0.05 + 0.03 * NY], -1) * (0.6 + 0.4 * danger)
+            img = sky + self.stars[..., None] * 0.3 * (1 - danger)
+            # eruption column: billowing, rising, widening with height
+            cy = RH * 0.515; h = np.clip((cy - YY) / cy, 0, 1)
+            width = 0.05 + 0.42 * h ** 0.8 * (0.4 + 0.6 * danger)
+            col = np.exp(-((NX - 0.5 - 0.04 * h * np.sin(t * 0.3)) / width) ** 2) * (YY < cy)
+            tex = np.roll(self.tex3[:RH, :RW], -int(t * 22) % RH, 0)
+            plume = np.clip(col * (0.7 + 1.1 * tex) * (0.55 + 0.75 * danger), 0, 1)
+            lit = np.exp(-(cy - YY).clip(0) / (RH * 0.18))
+            pc = np.stack([0.16 + 0.75 * lit, 0.13 + 0.32 * lit, 0.12 + 0.12 * lit], -1)
+            img = img * (1 - plume[..., None]) + pc * plume[..., None]
+            if danger > 0.6 and (int(t * 3.1 + self.bolt_seed) % 7 == 0):           # lightning in the plume
+                bx = int(RW * 0.5 + 60 * math.sin(t * 13)); img[int(RH * 0.15):int(RH * 0.45), bx:bx + 2] += 1.2
+            mnt = self.mask[..., None]
+            rock = (0.05 + 0.05 * self.tex[:RH, :RW])[..., None] * np.array([1.0, 0.9, 0.85], np.float32)
+            glow = np.exp(-(((NX - 0.5) / 0.08) ** 2 + ((NY - 0.52) / 0.03) ** 2)) * (1.2 + 0.3 * math.sin(t * 9))
+            lava = cv2.GaussianBlur(self.lava, (0, 0), 3) * 1.4 + self.lava * (0.8 + 0.2 * math.sin(t * 5))
+            img = img * (1 - mnt) + mnt * rock + (glow + lava * danger)[..., None] * np.array([1.0, 0.38, 0.06], np.float32)
+        elif k == "asteroid":
+            img = np.stack([0.01 + 0.04 * NY, 0.012 + 0.03 * NY, 0.03 + 0.05 * NY], -1) + self.stars[..., None]
+            p = float(np.clip(lt * 0.09 + danger * 0.55, 0, 1))
+            fx, fy = 0.88 - 0.4 * p, 0.08 + 0.55 * p
+            dx = NX - fx; dy = (NY - fy) * RH / RW
+            r_ = 0.012 + 0.05 * p
+            head = np.exp(-(dx * dx + dy * dy) / (r_ * r_)) * 3
+            along = (dx * 0.6 - dy * 0.8)            # trail direction (up-right)
+            perp = (dx * 0.8 + dy * 0.6)
+            trail = np.exp(-(perp / (r_ * 0.9)) ** 2) * np.exp(-np.clip(along, 0, None) / (0.12 + 0.3 * p)) * (along > 0) * 1.6
+            img += (head + trail)[..., None] * np.array([1.0, 0.7, 0.35], np.float32)
+            hz = 0.78
+            ground = (NY > hz).astype(np.float32)
+            img = img * (1 - ground[..., None]) + ground[..., None] * (0.02 + 0.25 * p ** 2) * np.array([1.0, 0.55, 0.3], np.float32)
+            dome = np.exp(-(((NX - 0.5) / 0.5) ** 2 + ((NY - hz) / 0.25) ** 2)) * np.clip((danger - 0.9) * 10, 0, 1) * 3
+            img += dome[..., None] * np.array([1.0, 0.85, 0.7], np.float32)
+        elif k == "ruins":
+            sky = np.stack([0.30 - 0.18 * NY, 0.14 - 0.06 * NY, 0.08 + 0 * NY], -1) * (0.7 + 0.3 * danger)
+            smoke = np.roll(self.tex3[:RH, :RW], -int(t * 15) % RH, 0)
+            img = sky * (0.6 + 0.6 * smoke[..., None])
+            img = img * (1 - self.mask[..., None]) + self.mask[..., None] * 0.015
+            for (x, y, sz, ph) in self.fires:
+                f_ = np.exp(-(((XX - x) / sz) ** 2 + ((YY - y + sz) / (sz * 1.8)) ** 2)) * (0.8 + 0.4 * math.sin(t * 9 + ph))
+                img += f_[..., None] * np.array([1.0, 0.45, 0.1], np.float32) * 1.4
+        elif k == "ice":
+            sky = np.stack([0.55 + 0.25 * NY, 0.65 + 0.2 * NY, 0.78 + 0.15 * NY], -1) * (1.0 - 0.45 * danger)
+            sun = np.exp(-(((NX - 0.7) / 0.05) ** 2 + ((NY - 0.42) / 0.03) ** 2)) * 1.5 * (1 - danger)
+            img = sky + sun[..., None]
+            snow = (0.75 + 0.2 * self.tex[:RH, :RW])[..., None] * np.array([0.85, 0.9, 1.0], np.float32) * (1 - 0.4 * danger)
+            img = img * (1 - self.mask[..., None]) + self.mask[..., None] * snow
+            img -= (self.cracks * self.mask)[..., None] * 0.5
+        elif k == "storm":
+            cl = np.roll(self.tex3[:RH, :RW], int(t * 25) % RW, 1)
+            img = np.repeat((0.05 + 0.13 * cl)[..., None], 3, -1) * np.array([0.8, 0.85, 1.0], np.float32)
+            hz = 0.62; sea = (NY > hz).astype(np.float32)
+            wt = np.roll(self.tex[:RH, :RW], int(t * 30) % RW, 1)
+            waves = 0.03 + 0.07 * wt * (1 + (NY - hz).clip(0) * 3) + 0.05 * np.exp(-((NY - hz) / 0.01) ** 2)
+            img = img * (1 - sea[..., None]) + sea[..., None] * np.stack([waves * 0.7, waves * 0.9, waves * 1.05], -1)
+            ph = int(t * 2.3 + self.bolt_seed) % 5
+            if ph == 0 and (t * 2.3) % 1 < 0.25:
+                r2 = np.random.default_rng(int(t * 2.3)); bx = r2.uniform(0.2, 0.8) * RW; by = 0
+                m2 = Image.new("L", (RW, RH), 0); d2 = ImageDraw.Draw(m2); pts = [(bx, by)]
+                while by < RH * hz:
+                    bx += r2.uniform(-25, 25); by += r2.uniform(15, 35); pts.append((bx, by))
+                d2.line(pts, fill=255, width=3); b_ = np.asarray(m2, np.float32) / 255
+                img += (b_ * 2 + cv2.GaussianBlur(b_, (0, 0), 12) * 3)[..., None] * np.array([0.8, 0.85, 1.0], np.float32) + 0.15
+        elif k == "shelter":
+            dx = np.abs(NX - 0.5); dy = np.abs(NY - 0.5)
+            depth = np.maximum(dx, dy * 0.75)
+            wall = (0.05 + 0.04 * self.tex[:RH, :RW]) * np.clip(depth * 3, 0.3, 1)
+            img = np.stack([wall, wall * 0.95, wall * 0.9], -1)
+            bx = 0.5 + 0.05 * math.sin(t * 1.1)
+            flick = 1.0 if (int(t * 11) % 23) else 0.25
+            light = np.exp(-(((NX - bx) / 0.35) ** 2 + ((NY - 0.45) / 0.45) ** 2)) * 0.6 * flick
+            bulb = np.exp(-(((NX - bx) / 0.012) ** 2 + ((NY - 0.18) / 0.007) ** 2)) * 4 * flick
+            img = img * (0.8 + light[..., None] * 3.2) + (bulb + light * 0.25)[..., None] * np.array([1.0, 0.8, 0.5], np.float32)
+            wire = (np.abs(NX - (0.5 + (bx - 0.5) * NY / 0.18)) < 0.002) * (NY < 0.18)
+            img = img * (1 - wire[..., None] * 0.9)
+            img = img * (1 - self.mask[..., None] * 0.85)
+        elif k == "aurora":
+            img = np.stack([0.01 + 0.02 * NY, 0.02 + 0.03 * NY, 0.04 + 0.05 * NY], -1) + self.stars[..., None]
+            for j, (c, sp) in enumerate([((0.2, 1.0, 0.5), 0.6), ((0.6, 0.3, 1.0), 0.4), ((0.1, 0.9, 0.7), 0.8)]):
+                xc = 0.5 + 0.3 * np.sin(NY * 4 + t * sp + j * 2)
+                band = np.exp(-((NX - xc) / (0.05 + 0.05 * j)) ** 2) * np.clip(1 - NY * 1.4, 0, 1) * (0.5 + 0.5 * np.sin(YY * 0.15 + t * 3 + j))
+                img += band[..., None] * np.array(c, np.float32) * (0.4 + 0.8 * danger)
+            gnd = (NY > 0.8 - 0.02 * np.sin(XX * 0.05)).astype(np.float32)
+            img = img * (1 - gnd[..., None]) + gnd[..., None] * 0.01
         elif k == "crack":
             base = 0.42 + 0.18 * self.tex
             img = np.stack([base, base * 0.97, base * 0.93], -1)
@@ -472,6 +609,53 @@ class Scene:
 
 # ====================================================================== post FX
 VIG = None
+_PART = {}
+
+
+def particles(img, kind, t, danger):
+    """Additive particle layer on the small render: ash | embers | snow | rain | dust | sparks."""
+    if not kind or kind == "none":
+        return img
+    if kind not in _PART:
+        r = np.random.default_rng(hash(kind) % 1000)
+        n = {"rain": 700, "snow": 420, "ash": 380, "embers": 160, "dust": 220, "sparks": 120}.get(kind, 200)
+        _PART[kind] = (r.uniform(0, RW, n), r.uniform(0, RH, n), r.uniform(0.4, 1.0, n), r.uniform(0, 6.28, n))
+    x0, y0, z, ph = _PART[kind]
+    lay = np.zeros((RH, RW), np.float32)
+    if kind == "rain":
+        sp = 900 * z; xs = (x0 - t * 120 * z) % RW; ys = (y0 + t * sp) % RH
+        for L in range(0, 14, 2):
+            yy = ((ys - L) % RH).astype(int); xx = ((xs + L * 0.15) % RW).astype(int)
+            np.add.at(lay, (yy, xx), 0.25 * z)
+        col = np.array([0.7, 0.75, 0.85], np.float32); amt = 0.9
+    else:
+        if kind == "snow":
+            ys = (y0 + t * 60 * z) % RH; xs = (x0 + 25 * np.sin(t * 0.8 + ph) + t * 40 * z) % RW; col = np.array([0.95, 0.97, 1.0], np.float32)
+        elif kind == "ash":
+            ys = (y0 + t * 35 * z) % RH; xs = (x0 + 18 * np.sin(t * 0.5 + ph) + t * 12) % RW; col = np.array([0.55, 0.52, 0.5], np.float32)
+        elif kind == "embers":
+            ys = (y0 - t * 70 * z) % RH; xs = (x0 + 22 * np.sin(t * 1.3 + ph)) % RW; col = np.array([1.0, 0.45, 0.1], np.float32)
+        elif kind == "sparks":
+            ys = (y0 - t * 160 * z) % RH; xs = (x0 + 40 * np.sin(t * 2 + ph)) % RW; col = np.array([1.0, 0.8, 0.4], np.float32)
+        else:  # dust
+            ys = (y0 + 8 * np.sin(t * 0.3 + ph)) % RH; xs = (x0 + t * 6 * z) % RW; col = np.array([0.9, 0.85, 0.7], np.float32)
+        yy = ys.astype(int) % RH; xx = xs.astype(int) % RW
+        flick = 0.6 + 0.4 * np.sin(t * 7 + ph) if kind in ("embers", "sparks") else 1.0
+        np.add.at(lay, (yy, xx), (1.6 * z * flick))
+        amt = 1.0
+    size = {"snow": 1.4, "ash": 1.6, "embers": 1.3, "dust": 1.0, "sparks": 0.9, "rain": 0.6}.get(kind, 1.0)
+    lay = cv2.GaussianBlur(lay, (0, 0), size)
+    glow = cv2.GaussianBlur(lay, (0, 0), 5) * (0.8 if kind in ("embers", "sparks") else 0.0)
+    return img + (lay + glow)[..., None] * col * amt
+
+
+def camera(img, u, idx, danger):
+    """Slow push-in / pull-out with a drift, per beat (u = 0..1 through the beat)."""
+    u = u * u * (3 - 2 * u)
+    z = 1.0 + 0.09 * (u if idx % 2 == 0 else 1 - u) + 0.02
+    dx = (12 if idx % 3 == 0 else -12) * (u - 0.5); dy = (-8 if idx % 4 < 2 else 8) * (u - 0.5)
+    M = np.float32([[z, 0, (1 - z) * RW / 2 + dx], [0, z, (1 - z) * RH / 2 + dy]])
+    return cv2.warpAffine(img, M, (RW, RH), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
 
 
 def post(img_small, t, danger, flash):
@@ -545,17 +729,17 @@ class HUD:
         serif = os.path.join(FONT_DIR, "Lora-Variable.ttf")
         if beat.get("scene") == "endcard":
             ec = endcard or {}
-            y = 640; fl = font(F_MED, 36)
+            y = 560; fl = font(F_BOLD, 50)
             for i, line in enumerate(ec.get("stats", [])):
                 if lt > 0.4 + i * 0.45:
                     d.text((W / 2, y), line.upper(), font=fl, fill=(235, 235, 235, 255), anchor="mm")
-                y += 54
+                y += 72
             if lt > 0.6 + 0.45 * len(ec.get("stats", [])):
                 y += 60
                 d.text((W / 2, y), ec.get("kicker", "").upper(), font=font(F_MED, 26), fill=(200, 200, 200, 255), anchor="mm"); y += 70
-                fp = font(os.path.join(FONT_DIR, "Poppins-Bold.ttf"), 64)
+                fp = font(os.path.join(FONT_DIR, "Poppins-Bold.ttf"), 92)
                 for ln in ec.get("punchline", "").upper().split("\n"):
-                    d.text((W / 2, y), ln, font=fp, fill=(255, 255, 255, 255), anchor="mm"); y += 76
+                    d.text((W / 2, y), ln, font=fp, fill=(255, 225, 0, 255), anchor="mm"); y += 104
                 y += 40
                 d.text((W / 2, y), ec.get("tagline", ""), font=font(F_ITAL, 44), fill=(235, 235, 235, 255), anchor="mm"); y += 110
                 d.text((W / 2, y), ec.get("note", "").upper(), font=font(F_MONO, 20), fill=(170, 170, 170, 255), anchor="mm")
@@ -701,6 +885,8 @@ WrapStyle: 0
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Cap,Poppins,74,&H00FFFFFF,&H000000FF,&H00000000,&H90000000,-1,0,0,0,100,100,2,0,1,4,3,2,90,90,560,1
 Style: Emph,Poppins,92,&H002B24E4,&H000000FF,&H00000000,&H90000000,-1,0,0,0,100,100,1,0,1,5,4,2,80,80,560,1
+Style: Kara,Poppins,84,&H0000E1FF,&H00FFFFFF,&H00000000,&H96000000,-1,0,0,0,100,100,1,0,1,6,4,2,80,80,640,1
+Style: KaraE,Poppins,92,&H003B3BFF,&H00FFFFFF,&H00000000,&H96000000,-1,0,0,0,100,100,1,0,1,7,4,2,70,70,640,1
 Style: Serif,Lora,62,&H00FFFFFF,&H000000FF,&H50101010,&H64000000,0,-1,0,0,100,100,0,0,1,2.2,3,2,110,110,600,1
 Style: SerifE,Lora,66,&H00FFFFFF,&H000000FF,&H50101010,&H64000000,-1,-1,0,0,100,100,0,0,1,2.4,3,2,110,110,600,1
 
@@ -709,15 +895,29 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     ev = []
     if whatif:
+        # big bold karaoke captions: 2–4 words per card, each word lights up as it is spoken
         for (start, end, text, beat) in timeline:
             if beat.get("scene") == "endcard":
                 continue
-            st = "SerifE" if beat.get("emph") else "Serif"
-            txt = text.replace("{", "(").replace("}", ")")
-            words = txt.split()
-            if len(txt) > 26:
-                mid = len(words) // 2; txt = " ".join(words[:mid]) + "\\N" + " ".join(words[mid:])
-            ev.append(f"Dialogue: 0,{mv.ass_time(start)},{mv.ass_time(end + 0.3)},{st},,0,0,0,,{{\\fad(150,150)}}{txt}")
+            st = "KaraE" if beat.get("emph") else "Kara"
+            words = text.upper().replace("{", "(").replace("}", ")").split()
+            chunks, cur = [], []
+            for w in words:
+                cur.append(w)
+                if len(cur) >= 3 or (re.search(r"[.,!?…:;]$", w) and len(cur) >= 2):
+                    chunks.append(cur); cur = []
+            if cur:
+                chunks.append(cur)
+            total_c = sum(len(w) + 1 for w in words) or 1; t0 = start
+            for c in chunks:
+                cd = (end - start) * sum(len(w) + 1 for w in c) / total_c
+                ks = []
+                for w in c:
+                    k = max(1, int(round(cd * 100 * (len(w) + 1) / sum(len(x) + 1 for x in c))))
+                    ks.append(f"{{\\k{k}}}{w}")
+                fx = "{\\fad(30,40)\\fscx88\\fscy88\\t(0,90,\\fscx100\\fscy100)}"
+                ev.append(f"Dialogue: 0,{mv.ass_time(t0)},{mv.ass_time(t0 + cd)},{st},,0,0,0,,{fx}" + " ".join(ks))
+                t0 += cd
         open(path, "w", encoding="utf-8").write(head + "\n".join(ev) + "\n")
         return
     for (start, end, text, beat) in timeline:
@@ -782,7 +982,9 @@ def main():
     # ---- audio mix
     thr = threat_sound(story.get("threat", "rotor"), n)
     tt = np.arange(n) / SR
-    prox = np.array([1 - dist_at(x) / dmax for x in np.linspace(0, total, 400)])
+    prox = np.clip(np.array([1 - dist_at(x) / dmax for x in np.linspace(0, total, 400)]), 0, 1)
+    if whatif:
+        prox = np.clip(np.array([danger_at(x) for x in np.linspace(0, total, 400)]), 0, 1)
     prox = np.interp(tt, np.linspace(0, total, 400), prox)
     hb = heartbeat_track(bpm_at, n)
     bed = mv.ambience(story.get("ambience", "wind"), n)
@@ -792,7 +994,8 @@ def main():
     dz_curve = np.interp(tt, grid, [danger_at(x) for x in grid])
     mix = (voice_tr + fx_tr * 0.28 * fxd + bed * 0.6 * duck + thr * (0.04 + 0.22 * prox ** 1.5) * duck
            + hb * (0.05 + 0.16 * dz_curve) * duck * (0.35 if whatif else 1.0))
-    mix = np.tanh(mix * 1.15) * 0.92
+    mix = np.nan_to_num(mix, nan=0.0, posinf=0.0, neginf=0.0)
+    mix = np.tanh(mix * 1.1) * 0.85
     import soundfile as sf
     wav = os.path.join(work, "mix.wav"); sf.write(wav, mix.astype(np.float32), SR)
     make_ass(timeline, os.path.join(work, "caps.ass"), whatif)
@@ -822,6 +1025,9 @@ def main():
             if 0 <= t - fl < 0.25:
                 flash = max(flash, 1 - (t - fl) * 4)
         img = scenes[key].frame(t, t - starts[i], dz, dn)
+        img = camera(img, min(1.0, (t - starts[i]) / max(0.5, starts[i + 1] - starts[i])), i, dz)
+        pk = beats[i].get("particles", DEFAULT_PART.get(kind))
+        img = particles(img, pk, t, dz)
         frame = post(img, t, dz, flash)
         if whatif:
             overlay = hud.render_whatif(t, dist_at(t), beats[i], t - starts[i], story.get("endcard"))
@@ -834,7 +1040,7 @@ def main():
     ass = os.path.join(work, "caps.ass").replace(":", "\\:")
     mv.run(["ffmpeg", "-y", "-i", raw, "-i", wav, "-vf", f"ass={ass}:fontsdir={FONT_DIR}", "-map", "0:v", "-map", "1:a",
             "-t", f"{total:.2f}", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-maxrate", "4500k", "-bufsize", "9000k",
-            "-pix_fmt", "yuv420p", "-af", "aresample=48000:resampler=soxr,lowpass=f=11000", "-c:a", "aac", "-b:a", "192k",
+            "-pix_fmt", "yuv420p", "-af", "aresample=48000:resampler=soxr,lowpass=f=11000,alimiter=limit=0.89:attack=5:release=60:level=disabled", "-c:a", "aac", "-b:a", "192k",
             "-movflags", "+faststart", out])
     print(f"OK {out} {total:.1f}s {os.path.getsize(out)} bytes")
 
