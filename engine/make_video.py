@@ -134,7 +134,9 @@ def sfx(kind):
         hit = (np.sin(2 * np.pi * 48 * t) + lp_fast(r.standard_normal(n), 400) * 0.8) * np.exp(-t * 4.5)
         fl = int(0.004 * SR); hit[:fl] *= np.linspace(0, 1, fl)
         return norm(hit, 0.95)
-    if kind == "beep":
+    if kind == "beep":                       # Tristan doesn't want beeps: silent on purpose
+        return np.zeros(int(0.2 * SR))
+    if kind == "beep_old":
         n = int(0.9 * SR); t = np.arange(n) / SR
         b = np.sin(2 * np.pi * 1320 * t) * ((t % 0.3) < 0.12) * 0.5
         return lp_fast(b, 4000) * env(n, .005, .05)

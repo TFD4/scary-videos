@@ -5,7 +5,7 @@
   "ambience": "drone",
   "threat": "static",
   "beats": [
-    {"text": "What happens if the Sun disappears right now?", "scene": "planet", "label": "SUNLIGHT", "unit": "%", "value": 100, "from": 100, "danger": 0.2, "sfx": "beep", "emph": true},
+    {"text": "What happens if the Sun disappears right now?", "scene": "planet", "label": "SUNLIGHT", "unit": "%", "value": 100, "from": 100, "danger": 0.2, "emph": true},
     {"text": "For eight minutes, nothing. You don't even notice.", "scene": "city", "label": "TIME SINCE", "sublabel": "light still travelling", "unit": "MIN", "value": 8, "from": 0, "danger": 0.2},
     {"text": "Then the sky goes black. Instantly.", "scene": "space", "label": "SUNLIGHT", "unit": "%", "value": 0, "from": 100, "danger": 0.6, "sfx": "impact", "emph": true},
     {"text": "The Moon vanishes too. It was only ever reflecting the Sun.", "scene": "moon", "label": "MOONLIGHT", "unit": "%", "value": 0, "from": 100, "danger": 0.5},
@@ -21,7 +21,7 @@
     {"text": "Down there, volcanic vents still pump out heat.", "scene": "crosssection", "label": "VENT HEAT", "unit": "°C", "value": 400, "from": 0, "danger": 0.55},
     {"text": "And life that never needed the Sun keeps going.", "scene": "cells", "label": "LIFE", "sublabel": "deep sea vents", "unit": "%", "value": 100, "from": 0, "danger": 0.3},
     {"text": "So the last living things on Earth won't be us.", "scene": "body", "focus": "heart", "label": "HUMANS LEFT", "unit": "%", "value": 0.01, "from": 100, "danger": 0.9, "emph": true},
-    {"text": "Would you make it to year two?", "scene": "endcard", "danger": 0.3, "sfx": "beep"}
+    {"text": "Would you make it to year two?", "scene": "endcard", "danger": 0.3}
   ],
   "endcard": {
     "stats": ["sunlight · 0%", "surface · −73 °C", "ocean ice · 400 m", "humans left · 0.01%"],
